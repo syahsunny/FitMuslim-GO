@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Support\Facades\Route;
@@ -29,6 +30,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Protected Routes
 Route::middleware(['auth'])->group(function () {
+
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');
@@ -37,18 +39,87 @@ Route::middleware(['auth'])->group(function () {
         return view('profile');
     })->name('profile');
 
-    // Goal-related routes
+    // Goal Routes
     Route::resource('goals', GoalController::class);
-    Route::post('/goals/update-weight', [GoalController::class, 'updateWeight'])->name('goals.updateWeight');
-    Route::post('/goals/update-workout', [GoalController::class, 'updateWorkout'])->name('goals.updateWorkout');
-    Route::post('/goals/update-water', [GoalController::class, 'updateWater'])->name('goals.updateWater');
 
-    // Workout-related routes
+    Route::post('/goals/update-weight', [GoalController::class, 'updateWeight'])
+        ->name('goals.updateWeight');
+
+    Route::post('/goals/update-workout', [GoalController::class, 'updateWorkout'])
+        ->name('goals.updateWorkout');
+
+    Route::post('/goals/update-water', [GoalController::class, 'updateWater'])
+        ->name('goals.updateWater');
+
+    // Workout Log Routes
+    Route::get('/workouts/progress', [WorkoutController::class, 'progress'])
+        ->name('workouts.progress');
+
     Route::resource('workouts', WorkoutController::class);
-    Route::get('workouts/progress', [WorkoutController::class, 'progress'])->name('workouts.progress');
+
+    // Community Routes
+    Route::resource('community/workouts', WorkoutPostController::class)
+        ->names([
+            'index' => 'community.workouts.index',
+            'create' => 'community.workouts.create',
+            'store' => 'community.workouts.store',
+            'show' => 'community.workouts.show',
+            'edit' => 'community.workouts.edit',
+            'update' => 'community.workouts.update',
+            'destroy' => 'community.workouts.destroy',
+        ]);
+
+    // Forum Discussions
+    Route::resource('discussions', ForumController::class)
+        ->names([
+            'index' => 'community.discussions.index',
+            'create' => 'community.discussions.create',
+            'store' => 'community.discussions.store',
+            'show' => 'community.discussions.show',
+            'destroy' => 'community.discussions.destroy',
+        ]);
+
+    Route::post('/discussions/replies/{reply}/mark-helpful',
+        [ForumController::class, 'markHelpfulReply'])
+        ->name('community.discussions.replies.mark-helpful');
+
+    // Comments
+    Route::post('/workouts/{workoutPost}/comments',
+        [CommentController::class, 'storeWorkoutComment'])
+        ->name('community.workouts.comments.store');
+
+    Route::post('/discussions/{forumTopic}/comments',
+        [CommentController::class, 'storeForumComment'])
+        ->name('community.discussions.comments.store');
+
+    // Likes
+    Route::post('/workouts/{workoutPost}/like',
+        [LikeController::class, 'toggleWorkoutLike'])
+        ->name('community.workouts.like');
+
+    Route::post('/comments/{comment}/like',
+        [LikeController::class, 'toggleForumCommentLike'])
+        ->name('community.comments.like');
+
+    // Motivation Management
+    Route::resource('motivations', MotivationController::class)
+        ->except(['show', 'edit']);
+
+    Route::get('motivations/{motivation}/edit',
+        [MotivationController::class, 'edit'])
+        ->name('motivations.edit');
+
+    Route::post('/motivations/{motivation}/bookmark',
+        [MotivationController::class, 'toggleBookmark'])
+        ->name('motivations.bookmark');
+
+    Route::post('/motivations/{motivation}/like',
+        [MotivationController::class, 'toggleLike'])
+        ->name('motivations.like');
+
 });
 
-// Display Community Page
+// Public Community Page
 Route::get('/community', function () {
     $trendingTopics = ForumTopic::latest()->take(3)->get();
 
@@ -57,49 +128,20 @@ Route::get('/community', function () {
         ->take(4)
         ->get();
 
-    return view('community.index', compact('trendingTopics', 'popularWorkouts'));
+    return view('community.index', compact(
+        'trendingTopics',
+        'popularWorkouts'
+    ));
 })->name('community.index');
 
-    // Workout Posts
-    Route::resource('workouts', WorkoutPostController::class)->names([
-        'index' => 'community.workouts.index',
-        'create' => 'community.workouts.create',
-        'store' => 'community.workouts.store',
-        'show' => 'community.workouts.show',
-        'edit' => 'community.workouts.edit',
-        'update' => 'community.workouts.update',
-        'destroy' => 'community.workouts.destroy'
-    ]);
+// Public Motivation Detail
+Route::get('motivations/{motivation}',
+    [MotivationController::class, 'show'])
+    ->name('motivations.show');
 
-    // Forum Discussions
-    Route::resource('discussions', ForumController::class)->names([
-        'index' => 'community.discussions.index',
-        'create' => 'community.discussions.create',
-        'store' => 'community.discussions.store',
-        'show' => 'community.discussions.show',
-        'destroy' => 'community.discussions.destroy'
-    ]);
-    Route::post('/discussions/replies/{reply}/mark-helpful', [ForumController::class, 'markHelpfulReply'])->name('community.discussions.replies.mark-helpful');
+// Nutrition Routes
+Route::get('/nutrition', [NutritionController::class, 'index'])
+    ->name('nutrition');
 
-    // Comments
-    Route::post('/workouts/{workoutPost}/comments', [CommentController::class, 'storeWorkoutComment'])->name('community.workouts.comments.store');
-    Route::post('/discussions/{forumTopic}/comments', [CommentController::class, 'storeForumComment'])->name('community.discussions.comments.store');
-
-    // Likes
-    Route::post('/workouts/{workoutPost}/like', [LikeController::class, 'toggleWorkoutLike'])->name('community.workouts.like');
-    Route::post('/comments/{comment}/like', [LikeController::class, 'toggleForumCommentLike'])->name('community.comments.like');
-    });
-
-    // Motivation Routes
-    Route::middleware(['auth'])->group(function () {
-    Route::resource('motivations', MotivationController::class)->except(['show']);
-    });
-
-    Route::get('motivations/{motivation}', [MotivationController::class, 'show'])->name('motivations.show');
-    Route::get('motivations/{motivation}/edit', [MotivationController::class, 'edit'])->name('motivations.edit');
-    Route::post('/motivations/{motivation}/bookmark', [MotivationController::class, 'toggleBookmark'])->middleware('auth')->name('motivations.bookmark');
-    Route::post('/motivations/{motivation}/like', [MotivationController::class, 'toggleLike'])->middleware('auth')->name('motivations.like');
-
-    // Nutrition Routes
-    Route::get('/nutrition', [NutritionController::class, 'index'])->name('nutrition');
-    Route::get('/nutrition/load', [NutritionController::class, 'load'])->name('nutrition.load');
+Route::get('/nutrition/load', [NutritionController::class, 'load'])
+    ->name('nutrition.load');
